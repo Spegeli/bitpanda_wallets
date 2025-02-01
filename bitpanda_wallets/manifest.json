@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "domain": "bitpanda_wallets",
+  "name": "Bitpanda Wallets",
+  "documentation": "https://github.com/Spegeli/bitpanda_wallets",
+  "issue_tracker": "https://github.com/Spegeli/bitpanda_wallets/issues",
+  "codeowners": ["@spegeli"],
+  "requirements": ["aiohttp"],
+  "iot_class": "cloud_polling",
+  "config_flow": true,
+  "single_config_entry": true
+}
