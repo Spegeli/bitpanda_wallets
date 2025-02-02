@@ -1,0 +1,42 @@
+{
+  "title": "Bitpanda Wallets",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bitpanda Wallets Setup - Step 1/2",
+        "description": "Please enter the API key and select the currency to be used for display.",
+        "data": {
+          "api_key": "API-Key",
+          "currency": "Available Currencies:"
+        }
+      },
+      "wallets": {
+        "title": "Bitpanda Wallets Setup - Step 2/2",
+        "description": "Please select the wallets you want to track.",
+        "data": {
+          "wallet": "Available Wallets:"
+        }
+      }
+    },
+    "error": {
+      "invalid_api_key": "The API key entered is invalid. Please check your API key and try again.",
+      "no_wallets": "No wallets are available for the selected currency.",
+      "no_wallets_selected": "Please select at least one wallet."
+    }
+  },
+  "options": {
+    "step": {
+      "wallets": {
+        "title": "Bitpanda Wallets Setup - Step 1/1",
+        "description": "Please select the wallets you want to track.",
+        "data": {
+          "wallet": "Available Wallets:"
+        }
+      }
+    },
+    "error": {
+      "no_wallets": "No wallets are available for the selected currency.",
+      "no_wallets_selected": "Please select at least one wallet."
+    }
+  }
+}
