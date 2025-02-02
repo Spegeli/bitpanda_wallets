@@ -8,5 +8,6 @@
   "requirements": ["aiohttp"],
   "iot_class": "cloud_polling",
   "config_flow": true,
-  "single_config_entry": true
+  "single_config_entry": true,
+  "translations": ["translations"]
 }
