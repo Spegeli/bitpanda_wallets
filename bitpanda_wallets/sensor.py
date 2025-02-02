@@ -1,9 +1,7 @@
-import logging
-import asyncio
-from datetime import timedelta, datetime
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -12,6 +10,9 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
+from datetime import timedelta, datetime
+import logging
+import asyncio
 
 from .const import (
     DOMAIN,
@@ -25,11 +26,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Richte die Bitpanda Wallet Sensoren ein."""
     api_key = entry.data[CONF_API_KEY]
     currency = entry.data[CONF_CURRENCY]
-    selected_wallets = entry.data.get(CONF_WALLET, list(WALLET_TYPES.keys()))
+    selected_wallets = entry.options.get(CONF_WALLET, list(WALLET_TYPES.keys()))
 
     coordinator = BitpandaDataUpdateCoordinator(
         hass,
@@ -41,18 +42,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     await coordinator.async_config_entry_first_refresh()
 
+    if not coordinator.data:
+        raise ConfigEntryNotReady("No data received from Bitpanda API")
+
     entities = []
     for wallet_type in selected_wallets:
-        if wallet_type in WALLET_TYPES:
+        if wallet_type in coordinator.data:
             entities.append(BitpandaWalletSensor(coordinator, wallet_type, currency))
+        else:
+            _LOGGER.warning("Wallet %s not found in Bitpanda API data", wallet_type)
 
     async_add_entities(entities)
 
     @callback
     async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-        """Behandle Optionsänderungen."""
-        coordinator.selected_wallets = entry.data.get(CONF_WALLET, list(WALLET_TYPES.keys()))
-        await coordinator.async_request_refresh()
+        """Handle options update."""
+        await hass.config_entries.async_reload(entry.entry_id)
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -245,3 +250,9 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
             wallets_info = wallet_data.get('wallets', [])
             attributes['wallets'] = wallets_info
         return attributes
+        
+    async def async_added_to_hass(self):
+        """Register update listener."""
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
