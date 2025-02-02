@@ -19,7 +19,7 @@ from .const import (
     CONF_WALLET,
     CONF_CURRENCY,
     WALLET_TYPES,
-    API_BASE_URL
+    BITPANDA_API_URL
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -112,15 +112,15 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
     async def _fetch_wallets(self, wallet_type, headers):
         """Hole Wallet-Daten für einen bestimmten Typ."""
         wallet_endpoint_map = {
-            "fiat": "fiatwallets",
-            "assets": "asset-wallets"
+            "FIAT": "fiatwallets",
+            "ASSETS": "asset-wallets"
         }
         endpoint = wallet_endpoint_map.get(wallet_type)
         if not endpoint:
             _LOGGER.error("Unbekannter Wallet-Typ: %s", wallet_type)
             return {wallet_type: {"total_balance": 0.0, "wallets": []}}
 
-        url = f"{API_BASE_URL}/{endpoint}"
+        url = f"{BITPANDA_API_URL}/{endpoint}"
         _LOGGER.debug("Abrufen von Daten für %s von URL: %s", wallet_type, url)
         async with self.session.get(url, headers=headers) as response:
             _LOGGER.debug("Antwortstatus für %s: %s", wallet_type, response.status)
@@ -129,9 +129,9 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
             response.raise_for_status()
             response_json = await response.json()
             # Analysiere die Antwort und sammle Wallet-Details
-            if wallet_type == 'assets':
+            if wallet_type == 'ASSETS':
                 total_balance, wallets_info = self._parse_asset_wallets(response_json)
-            elif wallet_type == 'fiat':
+            elif wallet_type == 'FIAT':
                 total_balance = self._parse_fiat_wallet(response_json)
                 wallets_info = []  # Keine zusätzlichen Attribute für das Fiat Wallet
             else:
@@ -201,10 +201,10 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
         self.currency = currency
 
         # Sensorname und unique_id anpassen
-        if wallet_type == 'fiat':
+        if wallet_type == 'FIAT':
             self._attr_name = f"Bitpanda Wallets Fiat {currency}"
             self._attr_unique_id = f"bitpanda_wallets_fiat_{currency.lower()}"
-        elif wallet_type == 'assets':
+        elif wallet_type == 'ASSETS':
             self._attr_name = f"Bitpanda Wallets Assets {currency}"
             self._attr_unique_id = f"bitpanda_wallets_assets_{currency.lower()}"
 
@@ -241,7 +241,7 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
             "next_update": next_update,
         }
         # Für den Assets Sensor fügen wir 'wallets' hinzu
-        if self.wallet_type == 'assets':
+        if self.wallet_type == 'ASSETS':
             wallet_data = self.coordinator.data.get(self.wallet_type, {})
             wallets_info = wallet_data.get('wallets', [])
             attributes['wallets'] = wallets_info
