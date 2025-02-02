@@ -19,12 +19,11 @@ from .const import (
     CONF_WALLET,
     CONF_CURRENCY,
     WALLET_TYPES,
-    BITPANDA_API_URL
+    BITPANDA_API_URL,
+    UPDATE_INTERVAL
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-UPDATE_INTERVAL = timedelta(minutes=5)  # Fest auf 5 Minuten gesetzt
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Richte die Bitpanda Wallet Sensoren ein."""
@@ -36,7 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         hass,
         api_key=api_key,
         currency=currency,
-        update_interval=UPDATE_INTERVAL,
+        update_interval=timedelta(minutes=UPDATE_INTERVAL),
         selected_wallets=selected_wallets
     )
 
@@ -74,7 +73,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
         self.selected_wallets = selected_wallets
         self.session = async_get_clientsession(hass)
         self.ticker_data = {}
-        self.next_update = dt_util.utcnow() + self.update_interval  # Initialisiere next_update
+        self.next_update = dt_util.utcnow() + update_interval
 
     async def _async_update_data(self):
         """Aktualisiere Daten über die API."""
