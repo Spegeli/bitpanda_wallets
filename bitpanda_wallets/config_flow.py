@@ -1,8 +1,8 @@
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.selector import selector
 from typing import Any
 import voluptuous as vol
 import aiohttp
@@ -72,8 +72,7 @@ class BitpandaWalletsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._currency = currency
                 self._api_key = api_key
                 return await self.async_step_wallets()
-            else:
-                errors["base"] = "invalid_api_key"
+            errors["base"] = "invalid_api_key"
 
         translations = await async_get_translations(self.hass, self.hass.config.language, "config")
 
@@ -94,21 +93,30 @@ class BitpandaWalletsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_wallets(self, user_input: dict[str, Any] = None):
         """Handle the wallets selection step."""
         errors = {}
-        if user_input:
-            if not user_input[CONF_WALLET]:
-                errors["base"] = "no_wallets_selected"
-            else:
-                return self.async_create_entry(
-                    title=f"Bitpanda Wallets ({self._currency})",
-                    data={
-                        CONF_CURRENCY: self._currency,
-                        CONF_API_KEY: self._api_key,
-                        CONF_WALLET: user_input[CONF_WALLET],
-                    }
-                )
+
+        if user_input and (selected := user_input.get(CONF_WALLET)):
+            return self.async_create_entry(
+                title=f"Bitpanda Wallets ({self._currency})",
+                data={
+                    CONF_CURRENCY: self._currency,
+                    CONF_API_KEY: self._api_key
+                },
+                options={
+                    CONF_WALLET: selected
+                }
+            )
+            
+        if user_input:            
+            errors["base"] = "no_wallets_selected"
+
+        selector_config = selector.SelectSelectorConfig(
+            options=["FIAT", "ASSETS"],
+            multiple=True,
+            mode=selector.SelectSelectorMode.DROPDOWN
+        )
 
         wallets_schema = vol.Schema({
-            vol.Required(CONF_WALLET, default=list(WALLET_TYPES.keys())): cv.multi_select(WALLET_TYPES)
+            vol.Required(CONF_WALLET, default=[]): selector.SelectSelector(selector_config)
         })
 
         return self.async_show_form(
@@ -128,26 +136,36 @@ class BitpandaWalletsOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] = None):
         """Manage the options."""
+        self._currency = self.config_entry.data[CONF_CURRENCY]
+        self.api_key = self.config_entry.data[CONF_API_KEY]
+        self._wallets = self.config_entry.options.get(CONF_WALLET, list(WALLET_TYPES.keys()))
+        
         return await self.async_step_wallets()
 
     async def async_step_wallets(self, user_input: dict[str, Any] = None):
         """Handle wallets selection during options flow."""
         errors = {}
-        wallets = self.config_entry.data.get(CONF_WALLET, list(WALLET_TYPES.keys()))
 
-        if user_input:
-            if not user_input[CONF_WALLET]:
-                errors["base"] = "no_wallets_selected"
-            else:
-                return self.async_create_entry(
-                    title="",
-                    data={
-                        CONF_WALLET: user_input[CONF_WALLET],
-                    }
-                )
+        if user_input and (selected := user_input.get(CONF_WALLET)):
+            self._wallets = selected
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_WALLET: self._wallets
+                }
+            )
+            
+        if user_input:            
+            errors["base"] = "no_wallets_selected"
+            
+        selector_config = selector.SelectSelectorConfig(
+            options=["FIAT", "ASSETS"],
+            multiple=True,
+            mode=selector.SelectSelectorMode.DROPDOWN
+        )
 
         wallets_schema = vol.Schema({
-            vol.Required(CONF_WALLET, default=wallets): cv.multi_select(WALLET_TYPES)
+            vol.Required(CONF_WALLET, default=self._wallets): selector.SelectSelector(selector_config)
         })
 
         return self.async_show_form(
