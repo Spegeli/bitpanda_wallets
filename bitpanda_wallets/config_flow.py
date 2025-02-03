@@ -1,28 +1,19 @@
-from homeassistant import config_entries
-from homeassistant.core import callback
-from homeassistant.helpers import selector
-from homeassistant.helpers import aiohttp_client
-from homeassistant.helpers import config_validation as cv
 from typing import Any
 import voluptuous as vol
 import aiohttp
 import logging
 
+from homeassistant import config_entries
+from homeassistant.core import callback
+from homeassistant.helpers import selector
+from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers import config_validation as cv
+
 from homeassistant.helpers.translation import async_get_translations
 
-from .const import (
-    DOMAIN,
-    CONF_CURRENCY,
-    CONF_API_KEY,
-    CONF_WALLET,
-    FIAT_CURRENCIES,
-    DEFAULT_FIAT_CURRENCY,
-    WALLET_TYPES,
-    BITPANDA_API_URL
-)
+from .const import DOMAIN, CONF_CURRENCY, CONF_API_KEY, CONF_WALLET, FIAT_CURRENCIES, DEFAULT_FIAT_CURRENCY, WALLET_TYPES, BITPANDA_API_URL
 
 _LOGGER = logging.getLogger(__name__)
-
 
 async def _test_api_key(hass, api_key):
     """Test the provided API key."""
