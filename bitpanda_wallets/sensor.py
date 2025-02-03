@@ -174,17 +174,14 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
 
 class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
     """Repräsentation eines Bitpanda Wallet Sensors."""
-
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
-    _attr_should_poll = False  # We use DataUpdateCoordinator
+    _attr_should_poll = False
 
     def __init__(self, coordinator: BitpandaDataUpdateCoordinator, wallet_type: str, currency: str) -> None:
-        super().__init__(coordinator)  # Korrekt den coordinator an super() übergeben
+        super().__init__(coordinator)
         self.wallet_type = wallet_type
         self.currency = currency
-
-        # Sensorname und unique_id anpassen
         if wallet_type == 'FIAT':
             self._attr_name = f"Bitpanda Wallets Fiat {currency}"
             self._attr_unique_id = f"{DOMAIN}_fiat_{currency.lower()}"
