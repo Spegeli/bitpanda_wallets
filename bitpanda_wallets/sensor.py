@@ -45,7 +45,7 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry):
     await hass.config_entries.async_reload(entry.entry_id)
 
 class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
-    """Klasse zur Verwaltung des Datenabrufs von der API."""
+    """Data update coordinator for Bitpanda API."""
  
     def __init__(self, hass: HomeAssistant, api_key: str, currency: str, update_interval_minutes: float, selected_wallets) -> None:
         super().__init__(
@@ -177,10 +177,10 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
 
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
+    _attr_should_poll = False  # We use DataUpdateCoordinator
 
-    def __init__(self, coordinator, wallet_type, currency):
-        """Initialisiere den Sensor."""
-        super().__init__(coordinator)
+    def __init__(self, coordinator: BitpandaDataUpdateCoordinator, wallet_type: str, currency: str) -> None:
+        super().__init__(coordinator)  # Korrekt den coordinator an super() übergeben
         self.wallet_type = wallet_type
         self.currency = currency
 
@@ -201,7 +201,7 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self):
         """Gibt die Maßeinheit zurück."""
-        return self.currency  # Angepasste Währung
+        return self.currency
 
     @property
     def extra_state_attributes(self):
@@ -212,7 +212,7 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
             **({"wallets": self.coordinator.data.get(self.wallet_type, {}).get('wallets', [])} if self.wallet_type == 'ASSETS' else {})
         }
         return attributes
-        
+
     async def async_added_to_hass(self) -> None:
         """Register update listener."""
         self.async_on_remove(
