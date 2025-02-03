@@ -8,7 +8,12 @@ UPDATE_INTERVAL = 5
 
 DEFAULT_FIAT_CURRENCY = "EUR"
 FIAT_CURRENCIES = ["EUR", "USD", "CHF", "GBP", "TRY", "PLN", "HUF", "CZK", "SEK", "DKK"]
+
 WALLET_TYPES = {
     "FIAT": "Fiat Wallet",
-    "ASSETS": "Asset Wallets"
+    "STOCK": "Aktien",
+    "INDEX": "Krypto-Indizies",
+    "METAL": "Edelmetalle",
+    "CRYPTOCOIN": "Krypto",
+    "ETF": "ETF"
 }
