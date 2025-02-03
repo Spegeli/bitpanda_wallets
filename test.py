@@ -195,7 +195,7 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
             self._attr_name = f"Bitpanda Wallets Fiat {currency}"
             self._attr_unique_id = f"{DOMAIN}_fiat_{currency.lower()}"
         elif wallet_type in ['STOCK', 'INDEX', 'METAL', 'CRYPTOCOIN', 'ETF']:
-            self._attr_name = f"Bitpanda Wallets Assets {currency}"
+            self._attr_name = f"Bitpanda Wallets {wallet_type} {currency}"
             self._attr_unique_id = f"{DOMAIN}_{wallet_type.lower()}_{currency.lower()}"
 
     @property
