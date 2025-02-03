@@ -101,7 +101,7 @@ class BitpandaWalletsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "no_wallets_selected"
 
         selector_config = selector.SelectSelectorConfig(
-            options=["FIAT", "ASSETS"],
+            options=list(WALLET_TYPES.keys()),
             multiple=True,
             mode=selector.SelectSelectorMode.DROPDOWN
         )
@@ -150,7 +150,7 @@ class BitpandaWalletsOptionsFlow(config_entries.OptionsFlow):
             errors["base"] = "no_wallets_selected"
             
         selector_config = selector.SelectSelectorConfig(
-            options=["FIAT", "ASSETS"],
+            options=list(WALLET_TYPES.keys()),
             multiple=True,
             mode=selector.SelectSelectorMode.DROPDOWN
         )
