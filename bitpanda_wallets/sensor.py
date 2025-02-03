@@ -54,15 +54,6 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=timedelta(minutes=update_interval_minutes)
         )
-        
-#    def __init__(self, hass, api_key, currency, update_interval, selected_wallets):
-#        """Initialisieren."""
-#        super().__init__(
-#            hass,
-#            _LOGGER,
-#            name=DOMAIN,
-#            update_interval=update_interval,
-#        )
         self.api_key = api_key
         self.currency = currency
         self.selected_wallets = selected_wallets
