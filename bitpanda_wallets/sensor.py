@@ -2,15 +2,12 @@ from datetime import timedelta, datetime
 import logging
 import asyncio
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-    UpdateFailed
-)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator, UpdateFailed
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
@@ -23,15 +20,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     api_key = entry.data[CONF_API_KEY]
     currency = entry.data[CONF_CURRENCY]
     selected_wallets = entry.options.get(CONF_WALLET, list(WALLET_TYPES.keys()))
-
-    coordinator = BitpandaDataUpdateCoordinator(
-        hass,
-        api_key=api_key,
-        currency=currency,
-        update_interval=timedelta(minutes=UPDATE_INTERVAL),
-        selected_wallets=selected_wallets
-    )
-
+    update_interval = float(UPDATE_INTERVAL)
+    
+    coordinator = BitpandaDataUpdateCoordinator(hass, api_key, currency, update_interval, selected_wallets)
     await coordinator.async_config_entry_first_refresh()
 
     if not coordinator.data:
@@ -46,31 +37,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     async_add_entities(entities)
 
-    @callback
-    async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-        """Handle options update."""
-        await hass.config_entries.async_reload(entry.entry_id)
+    # Registriere den Update-Listener für Optionen-Änderungen
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    entry.async_on_unload(entry.add_update_listener(update_listener))
-
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry):
+    """Handle updated options."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
     """Klasse zur Verwaltung des Datenabrufs von der API."""
-
-    def __init__(self, hass, api_key, currency, update_interval, selected_wallets):
-        """Initialisieren."""
+ 
+    def __init__(self, hass: HomeAssistant, api_key: str, currency: str, update_interval_minutes: float, selected_wallets) -> None:
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=update_interval,
+            update_interval=timedelta(minutes=update_interval_minutes)
         )
+        
+#    def __init__(self, hass, api_key, currency, update_interval, selected_wallets):
+#        """Initialisieren."""
+#        super().__init__(
+#            hass,
+#            _LOGGER,
+#            name=DOMAIN,
+#            update_interval=update_interval,
+#        )
         self.api_key = api_key
         self.currency = currency
         self.selected_wallets = selected_wallets
         self.session = async_get_clientsession(hass)
         self.ticker_data = {}
-        self.next_update = dt_util.utcnow() + update_interval
+        self.next_update = dt_util.utcnow() + self.update_interval
 
     async def _async_update_data(self):
         """Aktualisiere Daten über die API."""
@@ -182,7 +180,6 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                     "currency": currency
                 })
         return total, wallets_info
-
 
 class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
     """Repräsentation eines Bitpanda Wallet Sensors."""
