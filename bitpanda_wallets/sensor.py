@@ -187,10 +187,10 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
         # Sensorname und unique_id anpassen
         if wallet_type == 'FIAT':
             self._attr_name = f"Bitpanda Wallets Fiat {currency}"
-            self._attr_unique_id = f"bitpanda_wallets_fiat_{currency.lower()}"
+            self._attr_unique_id = f"{DOMAIN}_fiat_{currency.lower()}"
         elif wallet_type == 'ASSETS':
             self._attr_name = f"Bitpanda Wallets Assets {currency}"
-            self._attr_unique_id = f"bitpanda_wallets_assets_{currency.lower()}"
+            self._attr_unique_id = f"{DOMAIN}_assets_{currency.lower()}"
 
     @property
     def native_value(self):
@@ -205,33 +205,15 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Gibt die Zustandsattribute zurück."""
-        # Hole 'last_updated' aus den Koordinatordaten
-        last_update = self.coordinator.data.get("last_updated")
-        if isinstance(last_update, datetime):
-            last_update = dt_util.as_local(last_update).isoformat()
-        else:
-            last_update = None  # Oder eine passende Nachricht
-
-        # Hole 'next_update' aus dem Koordinator
-        next_update = self.coordinator.next_update
-        if isinstance(next_update, datetime):
-            next_update = dt_util.as_local(next_update).isoformat()
-        else:
-            next_update = None  # Oder eine passende Nachricht
-
+        """Return additional state attributes."""
         attributes = {
-            "last_update": last_update,
-            "next_update": next_update,
+            "last_update": dt_util.as_local(self.coordinator.data.get("last_updated")).isoformat(),
+            "next_update": dt_util.as_local(self.coordinator.next_update).isoformat(),
+            **({"wallets": self.coordinator.data.get(self.wallet_type, {}).get('wallets', [])} if self.wallet_type == 'ASSETS' else {})
         }
-        # Für den Assets Sensor fügen wir 'wallets' hinzu
-        if self.wallet_type == 'ASSETS':
-            wallet_data = self.coordinator.data.get(self.wallet_type, {})
-            wallets_info = wallet_data.get('wallets', [])
-            attributes['wallets'] = wallets_info
         return attributes
         
-    async def async_added_to_hass(self):
+    async def async_added_to_hass(self) -> None:
         """Register update listener."""
         self.async_on_remove(
             self.coordinator.async_add_listener(self.async_write_ha_state)
