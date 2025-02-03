@@ -139,51 +139,47 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                 return balance  # Da wir nur ein Fiat Wallet haben, können wir direkt zurückkehren
         return 0.0  # Falls kein Wallet gefunden wurde oder Balance 0 ist
 
-    def _parse_asset_wallets(self, data):
-        wallets = {
-            "STOCK": [],
-            "INDEX": [],
-            "METAL": [],
-            "CRYPTOCOIN": [],
-            "ETF": []
-        }
+    def _parse_asset_wallets(self, response_json):
+        """Analysiere Asset-Wallet-Daten."""
+        total_balance = 0.0
+        wallets_info = []
+        data = response_json.get('data', {})
+        attributes = data.get('attributes', {})
     
-        for wallet_type in wallets.keys():
-            if wallet_type.lower() in data['attributes']:
-                for wallet in data['attributes'][wallet_type.lower()]['wallets']:
-                    balance = float(wallet['attributes']['balance'])
-                    if balance > 0:
-                        wallets[wallet_type].append({
-                            "id": wallet['id'],
-                            "symbol": wallet['attributes']['cryptocoin_symbol'],
-                            "balance": balance,
-                            "name": wallet['attributes']['name']
-                        })
-        return wallets
+        # Liste der zu analysierenden Wallet-Typen
+        wallet_types = ['cryptocoin', 'stock', 'index', 'metal', 'etf']
 
-    def _collect_asset_wallet_info(self, response_data):
-        parsed_wallets = self._parse_asset_wallets(response_data)
+        for wallet_type in wallet_types:
+            wallet_data = attributes.get(wallet_type, {}).get('attributes', {})
+            wallets = wallet_data.get('wallets', [])
+            balance, info = self._collect_asset_wallet_info(wallets)
+            total_balance += balance
+            wallets_info.extend(info)
+    
+        return total_balance, wallets_info
+
+    def _collect_asset_wallet_info(self, wallets):
+        """Sammle Asset Wallet Informationen, berechne Werte in der ausgewählten Währung."""
         total = 0.0
-        all_wallet_info = []
-
-        for wallet_type, wallets in parsed_wallets.items():
-            for wallet in wallets:
-                currency = wallet['symbol']
+        wallets_info = []
+        for wallet in wallets:
+            attributes = wallet.get('attributes', {})
+            balance_token = float(attributes.get('balance', 0.0))
+            if balance_token > 0:
+                currency = attributes.get('cryptocoin_symbol', '')
                 # Hole den Preis aus den Ticker-Daten
                 price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
-                balance_converted = wallet['balance'] * price
+                balance_converted = balance_token * price
                 total += balance_converted
-                wallet_info = {
-                    "type": wallet_type,
-                    "id": wallet['id'],
-                    "symbol": currency,
-                    "balance_token": wallet['balance'],
+                name = attributes.get('name', '')
+                wallets_info.append({
+                    "name": name,
+                    "balance_token": balance_token,
                     f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                    "name": wallet['name']
-                }
-                all_wallet_info.append(wallet_info)
-    
-    return total, all_wallet_info
+                    "currency": currency
+                })
+        return total, wallets_info
+
 
 class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
     """Repräsentation eines Bitpanda Wallet Sensors."""
@@ -219,7 +215,7 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
         attributes = {
             "last_update": dt_util.as_local(self.coordinator.data.get("last_updated")).isoformat(),
             "next_update": dt_util.as_local(self.coordinator.next_update).isoformat(),
-            **({"wallets": self.coordinator.data.get(self.wallet_type, {}).get('wallets', [])} if self.wallet_type == 'ASSETS' else {})
+            **({"wallets": self.coordinator.data.get(self.wallet_type, {}).get('wallets', [])} if self.wallet_type in ['STOCK', 'INDEX', 'METAL', 'CRYPTOCOIN', 'ETF'] else {})
         }
         return attributes
 
