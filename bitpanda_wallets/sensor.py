@@ -77,16 +77,37 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Ticker-Daten abgerufen.")
             self.ticker_data = ticker_data
 
-            # Wallet-Daten abrufen
-            tasks = []
-            for wallet_type in self.selected_wallets:
-                tasks.append(self._fetch_wallets(wallet_type, headers))
-            results = await asyncio.gather(*tasks)
-            for result in results:
-                data.update(result)
+           # Einmalige Abfrage für alle Asset-Wallets
+            asset_types = {"STOCK", "INDEX", "METAL", "CRYPTOCOIN", "LEVERAGE", "ETF"}
+            selected_asset_types = set(self.selected_wallets) & asset_types
+            
+            if selected_asset_types:
+                url = f"{BITPANDA_API_URL}/asset-wallets"
+                async with self.session.get(url, headers=headers) as response:
+                    response.raise_for_status()
+                    asset_data = await response.json()
+                    
+                    # Verarbeite die Asset-Daten für jeden ausgewählten Wallet-Typ
+                    for wallet_type in selected_asset_types:
+                        total_balance, wallets_info = self._parse_asset_type(asset_data, wallet_type)
+                        data[wallet_type] = {
+                            "total_balance": total_balance,
+                            "wallets": wallets_info
+                        }
+
+            # Separate Abfrage für FIAT (wenn ausgewählt)
+            if "FIAT" in self.selected_wallets:
+                fiat_url = f"{BITPANDA_API_URL}/fiatwallets"
+                async with self.session.get(fiat_url, headers=headers) as response:
+                    response.raise_for_status()
+                    fiat_data = await response.json()
+                    fiat_balance = self._parse_fiat_wallet(fiat_data)
+                    data["FIAT"] = {"total_balance": fiat_balance, "wallets": []}
+
             # Füge das Aktualisierungsdatum hinzu
             data["last_updated"] = dt_util.utcnow()
             return data
+
         except Exception as err:
             _LOGGER.error("Fehler beim Abrufen der Daten: %s", err)
             raise UpdateFailed(f"Fehler beim Abrufen der Daten: {err}") from err
@@ -137,46 +158,25 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                 return balance  # Da wir nur ein Fiat Wallet haben, können wir direkt zurückkehren
         return 0.0  # Falls kein Wallet gefunden wurde oder Balance 0 ist
 
-    def _parse_asset_wallets(self, response_json, wallet_type):
-        """Analysiere Asset-Wallet-Daten."""
+    def _parse_asset_type(self, response_json, wallet_type):
+        """Parse specific asset type from the complete asset wallet response."""
         total_balance = 0.0
         wallets_info = []
+        
         data = response_json.get('data', {})
         attributes = data.get('attributes', {})
-    
-        # Convert wallet_type to lowercase for consistent matching
-        wallet_type_lower = wallet_type.lower()
-    
-        # Get wallet data based on type
-        if wallet_type_lower in attributes:
-            wallet_data = attributes.get(wallet_type_lower, {}).get('attributes', {})
-        elif wallet_type_lower in attributes.get('security', {}):
-            wallet_data = attributes['security'][wallet_type_lower].get('attributes', {})
-        elif wallet_type_lower in attributes.get('commodity', {}):
-            wallet_data = attributes['commodity'][wallet_type_lower].get('attributes', {})
-        elif wallet_type_lower in attributes.get('index', {}):
-            wallet_data = attributes['index'][wallet_type_lower].get('attributes', {})
-        else:
-            wallet_data = {}
-
-        wallets = wallet_data.get('wallets', [])
-
-        # Special handling for CRYPTOCOIN and LEVERAGE
-        if wallet_type in ['CRYPTOCOIN', 'LEVERAGE']:
-            # Get all crypto wallets
-            crypto_data = attributes.get('cryptocoin', {}).get('attributes', {}).get('wallets', [])
         
+        if wallet_type in ['CRYPTOCOIN', 'LEVERAGE']:
+            crypto_data = attributes.get('cryptocoin', {}).get('attributes', {}).get('wallets', [])
+            
             for wallet in crypto_data:
                 wallet_attrs = wallet.get('attributes', {})
                 balance_token = float(wallet_attrs.get('balance', 0.0))
                 if balance_token > 0:
                     currency = wallet_attrs.get('cryptocoin_symbol', '')
-                    # Check if this is a leverage token (ends with '2L')
                     is_leverage = currency.endswith('2L')
-                
-                    # Only process if it matches the requested wallet type
+                    
                     if (wallet_type == 'LEVERAGE' and is_leverage) or (wallet_type == 'CRYPTOCOIN' and not is_leverage):
-                        # Get price from ticker data
                         price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
                         balance_converted = balance_token * price
                         total_balance += balance_converted
@@ -188,7 +188,20 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                             "currency": currency
                         })
         else:
-            # Standard processing for other wallet types
+            # Handle other asset types
+            wallet_type_lower = wallet_type.lower()
+            if wallet_type_lower in attributes:
+                wallet_data = attributes.get(wallet_type_lower, {}).get('attributes', {})
+            elif wallet_type_lower in attributes.get('security', {}):
+                wallet_data = attributes['security'][wallet_type_lower].get('attributes', {})
+            elif wallet_type_lower in attributes.get('commodity', {}):
+                wallet_data = attributes['commodity'][wallet_type_lower].get('attributes', {})
+            elif wallet_type_lower in attributes.get('index', {}):
+                wallet_data = attributes['index'][wallet_type_lower].get('attributes', {})
+            else:
+                wallet_data = {}
+
+            wallets = wallet_data.get('wallets', [])
             for wallet in wallets:
                 wallet_attrs = wallet.get('attributes', {})
                 balance_token = float(wallet_attrs.get('balance', 0.0))
@@ -206,30 +219,6 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                     })
 
         return total_balance, wallets_info
-
-    def _collect_asset_wallet_info(self, wallets):
-        """Sammle Asset Wallet Informationen, berechne Werte in der ausgewählten Währung."""
-        total = 0.0
-        wallets_info = []
-        for wallet in wallets:
-            wallet_attrs = wallet.get('attributes', {})
-            balance_token = float(wallet_attrs.get('balance', 0.0))
-            if balance_token > 0:
-                # Immer "cryptocoin_symbol" für die Währung verwenden
-                currency = wallet_attrs.get('cryptocoin_symbol', '')
-                # Hole den Preis aus den Ticker-Daten
-                price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
-                balance_converted = balance_token * price
-                total += balance_converted
-                name = wallet_attrs.get('name', '')
-                wallets_info.append({
-                    "name": name,
-                    "balance_token": balance_token,
-                    f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                    "currency": currency
-                })
-        return total, wallets_info
-
 
 class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
     """Repräsentation eines Bitpanda Wallet Sensors."""
