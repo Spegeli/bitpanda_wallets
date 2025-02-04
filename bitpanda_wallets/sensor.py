@@ -115,38 +115,6 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
             # Aktualisiere next_update unabhängig vom Erfolg
             self.next_update = dt_util.utcnow() + self.update_interval
 
-    async def _fetch_wallets(self, wallet_type, headers):
-        """Hole Wallet-Daten für einen bestimmten Typ."""
-        wallet_endpoint_map = {
-            "FIAT": "fiatwallets",
-            "STOCK": "asset-wallets",
-            "INDEX": "asset-wallets",
-            "METAL": "asset-wallets",
-            "CRYPTOCOIN": "asset-wallets",
-            "LEVERAGE": "asset-wallets",
-            "ETF": "asset-wallets",
-        }
-        endpoint = wallet_endpoint_map.get(wallet_type)
-        if not endpoint:
-            _LOGGER.error("Unbekannter Wallet-Typ: %s", wallet_type)
-            return {wallet_type: {"total_balance": 0.0, "wallets": []}}
-
-        url = f"{BITPANDA_API_URL}/{endpoint}"
-        _LOGGER.debug("Abrufen von Daten für %s von URL: %s", wallet_type, url)
-        async with self.session.get(url, headers=headers) as response:
-            _LOGGER.debug("Antwortstatus für %s: %s", wallet_type, response.status)
-            response_text = await response.text()
-            _LOGGER.debug("Antworttext für %s: %s", wallet_type, response_text)
-            response.raise_for_status()
-            response_json = await response.json()
-            # Analysiere die Antwort und sammle Wallet-Details
-            if wallet_type == "FIAT":
-                total_balance = self._parse_fiat_wallet(response_json)
-                wallets_info = []
-            else:
-                total_balance, wallets_info = self._parse_asset_wallets(response_json, wallet_type)
-            return {wallet_type: {"total_balance": total_balance, "wallets": wallets_info}}
-
     def _parse_fiat_wallet(self, response_json):
         """Analysiere Fiat-Wallet-Daten und gebe die Balance zurück."""
         wallets = response_json.get('data', [])
