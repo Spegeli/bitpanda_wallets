@@ -10,10 +10,12 @@ DEFAULT_FIAT_CURRENCY = "EUR"
 FIAT_CURRENCIES = ["EUR", "USD", "CHF", "GBP", "TRY", "PLN", "HUF", "CZK", "SEK", "DKK"]
 
 WALLET_TYPES = {
-    "FIAT": "Fiat Wallet",
-    "STOCK": "Aktien",
-    "INDEX": "Krypto-Indizies",
-    "METAL": "Edelmetalle",
-    "CRYPTOCOIN": "Krypto",
-    "ETF": "ETF"
+    "FIAT": "Fiat",
+    "STOCK": "Stocks",
+    "INDEX": "Crypto Indices",
+    "METAL": "Metals",
+    "CRYPTOCOIN": "Crypto",
+    "LEVERAGE": "Leverage",
+#    "SECURITYTOKEN": "Security token",
+    "ETF": "ETFs"
 }
