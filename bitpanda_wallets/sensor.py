@@ -102,6 +102,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
             "INDEX": "asset-wallets",
             "METAL": "asset-wallets",
             "CRYPTOCOIN": "asset-wallets",
+            "LEVERAGE": "asset-wallets",
             "ETF": "asset-wallets",
         }
         endpoint = wallet_endpoint_map.get(wallet_type)
@@ -146,16 +147,13 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
         # Convert wallet_type to lowercase for consistent matching
         wallet_type_lower = wallet_type.lower()
     
-        # Prüfe, ob der Wallet-Typ direkt in attributes vorhanden ist
+        # Get wallet data based on type
         if wallet_type_lower in attributes:
             wallet_data = attributes.get(wallet_type_lower, {}).get('attributes', {})
-        # Prüfe, ob der Wallet-Typ unter 'security' liegt (z.B. stock, etf)
         elif wallet_type_lower in attributes.get('security', {}):
             wallet_data = attributes['security'][wallet_type_lower].get('attributes', {})
-        # Prüfe, ob der Wallet-Typ unter 'commodity' liegt (z.B. metal)
         elif wallet_type_lower in attributes.get('commodity', {}):
             wallet_data = attributes['commodity'][wallet_type_lower].get('attributes', {})
-        # Prüfe, ob der Wallet-Typ unter 'index' liegt (z.B. index)
         elif wallet_type_lower in attributes.get('index', {}):
             wallet_data = attributes['index'][wallet_type_lower].get('attributes', {})
         else:
@@ -163,23 +161,49 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
 
         wallets = wallet_data.get('wallets', [])
 
-        for wallet in wallets:
-            wallet_attrs = wallet.get('attributes', {})
-            balance_token = float(wallet_attrs.get('balance', 0.0))
-            if balance_token > 0:
-                # Immer "cryptocoin_symbol" für die Währung verwenden
-                currency = wallet_attrs.get('cryptocoin_symbol', '')
-                # Hole den Preis aus den Ticker-Daten
-                price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
-                balance_converted = balance_token * price
-                total_balance += balance_converted
-                name = wallet_attrs.get('name', '')
-                wallets_info.append({
-                    "name": name,
-                    "balance_token": balance_token,
-                    f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                    "currency": currency
-                })
+        # Special handling for CRYPTOCOIN and LEVERAGE
+        if wallet_type in ['CRYPTOCOIN', 'LEVERAGE']:
+            # Get all crypto wallets
+            crypto_data = attributes.get('cryptocoin', {}).get('attributes', {}).get('wallets', [])
+        
+            for wallet in crypto_data:
+                wallet_attrs = wallet.get('attributes', {})
+                balance_token = float(wallet_attrs.get('balance', 0.0))
+                if balance_token > 0:
+                    currency = wallet_attrs.get('cryptocoin_symbol', '')
+                    # Check if this is a leverage token (ends with '2L')
+                    is_leverage = currency.endswith('2L')
+                
+                    # Only process if it matches the requested wallet type
+                    if (wallet_type == 'LEVERAGE' and is_leverage) or (wallet_type == 'CRYPTOCOIN' and not is_leverage):
+                        # Get price from ticker data
+                        price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
+                        balance_converted = balance_token * price
+                        total_balance += balance_converted
+                        name = wallet_attrs.get('name', '')
+                        wallets_info.append({
+                            "name": name,
+                            "balance_token": balance_token,
+                            f"balance_{self.currency.lower()}": round(balance_converted, 2),
+                            "symbol": currency
+                        })
+        else:
+            # Standard processing for other wallet types
+            for wallet in wallets:
+                wallet_attrs = wallet.get('attributes', {})
+                balance_token = float(wallet_attrs.get('balance', 0.0))
+                if balance_token > 0:
+                    currency = wallet_attrs.get('cryptocoin_symbol', '')
+                    price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
+                    balance_converted = balance_token * price
+                    total_balance += balance_converted
+                    name = wallet_attrs.get('name', '')
+                    wallets_info.append({
+                        "name": name,
+                        "balance_token": balance_token,
+                        f"balance_{self.currency.lower()}": round(balance_converted, 2),
+                        "symbol": currency
+                    })
 
         return total_balance, wallets_info
 
@@ -202,7 +226,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                     "name": name,
                     "balance_token": balance_token,
                     f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                    "currency": currency
+                    "symbol": currency
                 })
         return total, wallets_info
 
@@ -241,12 +265,15 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
         }
         
         # Falls der wallet_type in der Liste der unterstützten Typen liegt…
-        if self.wallet_type.upper() in ['STOCK', 'INDEX', 'METAL', 'CRYPTOCOIN', 'ETF']:
+        if self.wallet_type.upper() in ['STOCK', 'INDEX', 'METAL', 'CRYPTOCOIN', 'LEVERAGE', 'ETF']:
             # …hole die Wallets. Wir gehen davon aus, dass die Daten in self.coordinator.data im Key wallet_type liegen.
             wallets = self.coordinator.data.get(self.wallet_type, {}).get('wallets', [])
             # Füge den Key nur hinzu, wenn auch tatsächlich Wallets vorhanden sind.
             if wallets:
-                attributes["wallets"] = wallets        
+                # Sortiere die Wallets nach balance_currency absteigend
+                currency_key = f"balance_{self.currency.lower()}"
+                sorted_wallets = sorted(wallets, key=lambda x: x[currency_key], reverse=True)
+                attributes["wallets"] = sorted_wallets   
         return attributes
 
     async def async_added_to_hass(self) -> None:
