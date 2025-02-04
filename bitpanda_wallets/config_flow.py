@@ -65,14 +65,9 @@ class BitpandaWalletsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_wallets()
             errors["base"] = "invalid_api_key"
 
-        translations = await async_get_translations(self.hass, self.hass.config.language, "config")
-
         data_schema = vol.Schema({
             vol.Required(CONF_API_KEY): cv.string,
-            vol.Required(CONF_CURRENCY, default=DEFAULT_FIAT_CURRENCY): vol.In({
-                currency: translations.get(f"component.bitpanda_wallets.config.currency.{currency}", currency)
-                for currency in FIAT_CURRENCIES
-            })
+            vol.Required(CONF_CURRENCY, default=DEFAULT_FIAT_CURRENCY): vol.In(FIAT_CURRENCIES)
         })
 
         return self.async_show_form(
@@ -100,8 +95,32 @@ class BitpandaWalletsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input:            
             errors["base"] = "no_wallets_selected"
 
+        translations = await async_get_translations(
+            self.hass,
+            self.hass.config.language,
+            category="config",
+            integrations=[DOMAIN]
+        )
+        
+        # Wallet-Types mit Übersetzungen vorbereiten
+        wallet_options = []
+        for wallet_type, display_name in WALLET_TYPES.items():
+            # Versuche zuerst die Übersetzung aus dem DOMAIN namespace zu bekommen
+            translation_key = f"config.wallet_types.{wallet_type}"
+            translated_name = translations.get(f"component.{DOMAIN}.{translation_key}")
+            if not translated_name:
+                # Fallback auf die englische Bezeichnung aus WALLET_TYPES
+                translated_name = display_name
+            
+            wallet_options.append(
+                selector.SelectOptionDict(
+                    value=wallet_type,
+                    label=translated_name
+                )
+            )
+
         selector_config = selector.SelectSelectorConfig(
-            options=list(WALLET_TYPES.keys()),
+            options=wallet_options,
             multiple=True,
             mode=selector.SelectSelectorMode.DROPDOWN
         )
@@ -129,7 +148,7 @@ class BitpandaWalletsOptionsFlow(config_entries.OptionsFlow):
         """Manage the options."""
         self._currency = self.config_entry.data[CONF_CURRENCY]
         self.api_key = self.config_entry.data[CONF_API_KEY]
-        self._wallets = self.config_entry.options.get(CONF_WALLET, list(WALLET_TYPES.keys()))
+        self._wallets = self.config_entry.options.get(CONF_WALLET, WALLET_TYPES.keys())
         
         return await self.async_step_wallets()
 
@@ -148,9 +167,35 @@ class BitpandaWalletsOptionsFlow(config_entries.OptionsFlow):
             
         if user_input:            
             errors["base"] = "no_wallets_selected"
+
+        translations = await async_get_translations(
+            self.hass,
+            self.hass.config.language,
+            category="config",
+            integrations=[DOMAIN]
+        )
+        #_LOGGER.debug("Aktuelle Sprache: %s", self.hass.config.language)
+        #_LOGGER.debug("Geladene lokale Übersetzungen: %s", translations)
+
+        # Wallet-Types mit Übersetzungen vorbereiten
+        wallet_options = []
+        for wallet_type, display_name in WALLET_TYPES.items():
+            # Versuche zuerst die Übersetzung aus dem DOMAIN namespace zu bekommen
+            translation_key = f"config.wallet_types.{wallet_type}"
+            translated_name = translations.get(f"component.{DOMAIN}.{translation_key}")
+            if not translated_name:
+                # Fallback auf die englische Bezeichnung aus WALLET_TYPES
+                translated_name = display_name
             
+            wallet_options.append(
+                selector.SelectOptionDict(
+                    value=wallet_type,
+                    label=translated_name
+                )
+            )
+
         selector_config = selector.SelectSelectorConfig(
-            options=list(WALLET_TYPES.keys()),
+            options=wallet_options,
             multiple=True,
             mode=selector.SelectSelectorMode.DROPDOWN
         )
