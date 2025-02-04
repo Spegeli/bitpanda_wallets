@@ -185,7 +185,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                             "name": name,
                             "balance_token": balance_token,
                             f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                            "symbol": currency
+                            "currency": currency
                         })
         else:
             # Standard processing for other wallet types
@@ -202,7 +202,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                         "name": name,
                         "balance_token": balance_token,
                         f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                        "symbol": currency
+                        "currency": currency
                     })
 
         return total_balance, wallets_info
@@ -226,7 +226,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                     "name": name,
                     "balance_token": balance_token,
                     f"balance_{self.currency.lower()}": round(balance_converted, 2),
-                    "symbol": currency
+                    "currency": currency
                 })
         return total, wallets_info
 
@@ -273,7 +273,19 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
                 # Sortiere die Wallets nach balance_currency absteigend
                 currency_key = f"balance_{self.currency.lower()}"
                 sorted_wallets = sorted(wallets, key=lambda x: x[currency_key], reverse=True)
-                attributes["wallets"] = sorted_wallets   
+                
+                # Formatiere die Wallet-Informationen
+                formatted_wallets = {}
+                for wallet in sorted_wallets:
+                    # Einheitliche Formatierung für alle Wallet-Typen
+                    formatted_wallet = (
+                        f"Token: {wallet['balance_token']} | "
+                        f"{self.currency}: {wallet[currency_key]} | "
+                        f"Symbol: {wallet['currency']}"
+                    )
+                    # Verwende überall den Wallet-Namen als Schlüssel
+                    formatted_wallets[wallet['name']] = formatted_wallet
+                attributes.update(formatted_wallets)
         return attributes
 
     async def async_added_to_hass(self) -> None:
