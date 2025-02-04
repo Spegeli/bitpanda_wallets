@@ -1,6 +1,15 @@
 {
   "title": "Bitpanda Wallets",
   "config": {
+    "wallet_types": {
+      "FIAT": "Fiat",
+      "STOCK": "Stocks",
+      "INDEX": "Crypto Indices",
+      "METAL": "Metals",
+      "CRYPTOCOIN": "Crypto",
+      "LEVERAGE": "Leverage",
+      "ETF": "ETFs"
+    },
     "step": {
       "user": {
         "title": "Bitpanda Wallets Setup - Step 1/2",
