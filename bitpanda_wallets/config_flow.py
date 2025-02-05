@@ -174,8 +174,6 @@ class BitpandaWalletsOptionsFlow(config_entries.OptionsFlow):
             category="config",
             integrations=[DOMAIN]
         )
-        #_LOGGER.debug("Aktuelle Sprache: %s", self.hass.config.language)
-        #_LOGGER.debug("Geladene lokale Übersetzungen: %s", translations)
 
         # Wallet-Types mit Übersetzungen vorbereiten
         wallet_options = []
