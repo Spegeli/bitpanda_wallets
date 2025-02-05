@@ -3,12 +3,13 @@
   "config": {
     "wallet_types": {
       "FIAT": "Fiat",
-      "STOCK": "Aktien",
-      "INDEX": "Krypto-Indizes",
-      "METAL": "Edelmetalle",
       "CRYPTOCOIN": "Krypto",
       "LEVERAGE": "Leverage",
-      "ETF": "ETFs"
+      "INDEX": "Krypto-Indizes",
+      "STOCK": "Aktien",
+      "ETF": "ETFs",
+      "ETC": "Rohstoffe",
+      "METAL": "Edelmetalle"
     },
     "step": {
       "user": {
