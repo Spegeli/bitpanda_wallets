@@ -72,18 +72,24 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
             # Ticker-Daten abrufen
             ticker_url = "https://api.bitpanda.com/v1/ticker"
             async with self.session.get(ticker_url) as ticker_response:
+                _LOGGER.debug("Antwortstatus für Ticker: %s", ticker_response.status)
+                #response_text = await ticker_response.text()
+                #_LOGGER.debug("Antworttext für Ticker: %s", response_text)
                 ticker_response.raise_for_status()
                 ticker_data = await ticker_response.json()
                 _LOGGER.debug("Ticker-Daten abgerufen.")
             self.ticker_data = ticker_data
 
            # Einmalige Abfrage für alle Asset-Wallets
-            asset_types = {"STOCK", "INDEX", "METAL", "CRYPTOCOIN", "LEVERAGE", "ETF"}
+            asset_types = {"STOCK", "INDEX", "METAL", "CRYPTOCOIN", "LEVERAGE", "ETF", "ETC"}
             selected_asset_types = set(self.selected_wallets) & asset_types
             
             if selected_asset_types:
                 url = f"{BITPANDA_API_URL}/asset-wallets"
                 async with self.session.get(url, headers=headers) as response:
+                    _LOGGER.debug("Antwortstatus für Asset-Wallets: %s", response.status)
+                    response_text = await response.text()
+                    _LOGGER.debug("Antworttext für Asset-Wallets: %s", response_text)
                     response.raise_for_status()
                     asset_data = await response.json()
                     
@@ -99,6 +105,9 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
             if "FIAT" in self.selected_wallets:
                 fiat_url = f"{BITPANDA_API_URL}/fiatwallets"
                 async with self.session.get(fiat_url, headers=headers) as response:
+                    _LOGGER.debug("Antwortstatus für FIAT: %s", response.status)
+                    response_text = await response.text()
+                    _LOGGER.debug("Antworttext für FIAT: %s", response_text)
                     response.raise_for_status()
                     fiat_data = await response.json()
                     fiat_balance = self._parse_fiat_wallet(fiat_data)
@@ -222,7 +231,7 @@ class BitpandaWalletSensor(CoordinatorEntity, SensorEntity):
         }
         
         # Falls der wallet_type in der Liste der unterstützten Typen liegt…
-        if self.wallet_type.upper() in ['STOCK', 'INDEX', 'METAL', 'CRYPTOCOIN', 'LEVERAGE', 'ETF']:
+        if self.wallet_type.upper() in ['STOCK', 'INDEX', 'METAL', 'CRYPTOCOIN', 'LEVERAGE', 'ETF', 'ETC']:
             # …hole die Wallets. Wir gehen davon aus, dass die Daten in self.coordinator.data im Key wallet_type liegen.
             wallets = self.coordinator.data.get(self.wallet_type, {}).get('wallets', [])
             # Füge den Key nur hinzu, wenn auch tatsächlich Wallets vorhanden sind.
