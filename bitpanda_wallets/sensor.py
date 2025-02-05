@@ -142,7 +142,7 @@ class BitpandaDataUpdateCoordinator(DataUpdateCoordinator):
                 balance_token = float(wallet_attrs.get('balance', 0.0))
                 if balance_token > 0:
                     currency = wallet_attrs.get('cryptocoin_symbol', '')
-                    is_leverage = currency.endswith('2L')
+                    is_leverage = currency.endswith('2L') or currency.endswith('1S')
                     
                     if (wallet_type == 'LEVERAGE' and is_leverage) or (wallet_type == 'CRYPTOCOIN' and not is_leverage):
                         price = float(self.ticker_data.get(currency, {}).get(self.currency, 0))
