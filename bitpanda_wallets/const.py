@@ -11,11 +11,12 @@ FIAT_CURRENCIES = ["EUR", "USD", "CHF", "GBP", "TRY", "PLN", "HUF", "CZK", "SEK"
 
 WALLET_TYPES = {
     "FIAT": "Fiat",
-    "STOCK": "Stocks",
-    "INDEX": "Crypto Indices",
-    "METAL": "Metals",
     "CRYPTOCOIN": "Crypto",
     "LEVERAGE": "Leverage",
-#    "SECURITYTOKEN": "Security token",
-    "ETF": "ETFs"
+    "INDEX": "Crypto Indices",
+#    "SECURITYTOKEN": "Security token",    
+    "STOCK": "Stocks",
+    "ETF": "ETFs",
+    "ETC": "Commodities", 
+    "METAL": "Metals"
 }
